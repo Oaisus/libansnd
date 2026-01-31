@@ -703,6 +703,19 @@ typedef void (*ansnd_audio_callback_t) (void* audio_buffer, u32 buffer_length, v
  */
 s32 ansnd_register_audio_callback(ansnd_audio_callback_t callback, void* callback_arguments);
 
+/**
+ * @brief Gets a descriptive string for an error code.
+ * 
+ * This function returns a verbose string describing an error code.
+ * 
+ * @param[in] error The error code.
+ * 
+ * @return The string.
+ * 
+ * @ingroup non-voices
+ */
+const char* ansnd_get_error_string(s32 error);
+
 #ifdef __cplusplus
 }
 #endif

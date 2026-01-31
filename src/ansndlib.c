@@ -1568,3 +1568,38 @@ s32 ansnd_register_audio_callback(ansnd_audio_callback_t callback, void* callbac
 	
 	return ANSND_ERROR_OK;
 }
+
+const char* ansnd_get_error_string(s32 error) {
+	switch (error) {
+	case ANSND_ERROR_OK:
+		return "OK";
+	case ANSND_ERROR_NOT_INITIALIZED:
+		return "Library not initialized";
+	case ANSND_ERROR_INVALID_CONFIGURATION:
+		return "Invalid value(s) used to initialize a voice";
+	case ANSND_ERROR_INVALID_INPUT:
+		return "Invalid value input into a function";
+	case ANSND_ERROR_INVALID_SAMPLERATE:
+		return "Invalid samplerate used for voice initialization or resulting from pitch";
+	case ANSND_ERROR_INVALID_MEMORY:
+		return "Invalid memory location given";
+	case ANSND_ERROR_ALL_VOICES_USED:
+		return "No available voices to allocate";
+	case ANSND_ERROR_VOICE_ID_NOT_ALLOCATED:
+		return "This voice id has not yet been allocated";
+	case ANSND_ERROR_VOICE_NOT_CONFIGURED:
+		return "This voice has not been setup yet";
+	case ANSND_ERROR_VOICE_NOT_INITIALIZED:
+		return "This voice has not been initialized yet";
+	case ANSND_ERROR_VOICE_RUNNING:
+		return "This function cannot be called while the voice is running";
+	case ANSND_ERROR_VOICE_ALREADY_LINKED:
+		return "This voice is already linked to another and cannot be linked to a third";
+	case ANSND_ERROR_VOICE_NOT_LINKED:
+		return "This voice is not linked to another and cannot be unlinked";
+	case ANSND_ERROR_DSP_STALLED:
+		return "The DSP has stalled, likely due to playing too many resampled voices at once";
+	default:
+		return "Unrecognized error code";
+	}
+}
