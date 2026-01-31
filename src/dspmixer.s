@@ -122,7 +122,7 @@ SOUND_BUFFER_END:            equ SOUND_BUFFER_BASE + (SOUND_BUFFER_SIZE / 2)
 WORKING_MEMORY_BASE:         equ SOUND_BUFFER_END
 WORKING_MEMORY_END:          equ WORKING_MEMORY_BASE + WORKING_MEMORY_SIZE
 
-// --- Parameter block offets --- //
+// --- Parameter block offsets --- //
 
 PB_SAMPLE_BUF_1:      equ 0x00
 

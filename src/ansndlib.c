@@ -304,20 +304,61 @@ static void ansnd_update_voice_pitch(ansnd_voice_t* voice) {
 	parameter_block->relative_frequency_high = HIGH(relative_frequency);
 	parameter_block->relative_frequency_low  = LOW(relative_frequency);
 	
-	u16 filter_step       = 0x7FFF;
-	s16 correction_factor = 32767;
+	u16 filter_step = 0x7FFF;
 	if (relative_frequency > base_frequency) {
-		filter_step       = lrintf((f32)base_frequency * (dsp_frequency / adjusted_samplerate) * 0.5f);
-		correction_factor = -256 * (128 - (filter_step >> 8)) + 32767;
+		filter_step = lrintf((f32)base_frequency * (dsp_frequency / adjusted_samplerate) * 0.5f);
 	}
 	parameter_block->filter_step       = filter_step;
-	parameter_block->correction_factor = correction_factor;
-	
-	u16 sample_buffer_size = lrintf(131071.f / filter_step);
-	parameter_block->sample_buffer_wrapping = sample_buffer_size - 1;
-	parameter_block->sample_buffer_index    = 16 - sample_buffer_size;
+	parameter_block->correction_factor = filter_step & ~0xFF;
 	
 	parameter_block->filter_step_512 = (filter_step >> 6) & 0x01FC;
+	
+	// update the sample buffer(s)
+	u16 new_sample_buffer_size     = lrintf(131071.f / filter_step);
+	u16 new_sample_buffer_wrapping = new_sample_buffer_size - 1;
+	u16 new_sample_buffer_index    = 16 - new_sample_buffer_size;
+	
+	u16 old_sample_buffer_size     = parameter_block->sample_buffer_wrapping + 1;
+	u16 old_sample_buffer_wrapping = parameter_block->sample_buffer_wrapping;
+	u16 old_sample_buffer_index    = parameter_block->sample_buffer_index;
+	
+	// if size is the same as before, return
+	if (new_sample_buffer_size == old_sample_buffer_size) {
+		return;
+	}
+	
+	// update the position of the samples
+	parameter_block->sample_buffer_wrapping = new_sample_buffer_wrapping;
+	parameter_block->sample_buffer_index    = new_sample_buffer_index;
+	
+	u32 total_copies = 0;
+	s16 sample_buffer_1[16] = {0};
+	s16 sample_buffer_2[16] = {0};
+	
+	if (new_sample_buffer_size < old_sample_buffer_size) {
+		old_sample_buffer_index += (old_sample_buffer_size - new_sample_buffer_size);
+		total_copies = new_sample_buffer_size;
+	} else {
+		new_sample_buffer_index += (new_sample_buffer_size - old_sample_buffer_size);
+		total_copies = old_sample_buffer_size;
+	}
+	
+	for (u32 i = 0; i < total_copies; ++i) {
+		if (old_sample_buffer_index > old_sample_buffer_wrapping) {
+			old_sample_buffer_index = 16 - old_sample_buffer_size;
+		}
+		
+		sample_buffer_1[new_sample_buffer_index] = parameter_block->sample_buffer[old_sample_buffer_index];
+		sample_buffer_2[new_sample_buffer_index] = parameter_block->pcm.sample_buffer_2[old_sample_buffer_index];
+		
+		old_sample_buffer_index += 1;
+		new_sample_buffer_index += 1;
+	}
+	
+	memcpy(parameter_block->sample_buffer, sample_buffer_1, 16 * 2);
+	if (!(parameter_block->flags & VOICE_FLAG_ADPCM)) {
+		memcpy(parameter_block->pcm.sample_buffer_2, sample_buffer_2, 16 * 2);
+	}
 }
 
 static void ansnd_update_voice_delay(ansnd_voice_t* voice) {
@@ -336,10 +377,10 @@ static void ansnd_update_voice_delay(ansnd_voice_t* voice) {
 		break;
 	}
 	
-	if (voice->delay < ((0x7FFF * microseconds_per_cycle) / 240)) {
+	if (voice->delay < microseconds_per_cycle) {
 		// convert delay to output samples in 1 cycle
 		voice->parameter_block->flags &= ~VOICE_FLAG_DELAY;
-		voice->parameter_block->delay = (voice->delay * dsp_frequency) / 1000000;
+		voice->parameter_block->delay = lrint((voice->delay * dsp_frequency) / 1000000);
 		voice->flags                  &= ~VOICE_FLAG_DELAY;
 		voice->delay                  = 0;
 	} else {
@@ -439,10 +480,6 @@ static void ansnd_sync_voice(ansnd_voice_t* voice) {
 	}
 	
 	if (voice->flags & VOICE_FLAG_PITCH_CHANGE) {
-		memset(parameter_block->sample_buffer, 0, 16 * 2);
-		if (!(parameter_block->flags & VOICE_FLAG_ADPCM)) {
-			memset(parameter_block->pcm.sample_buffer_2, 0, 16 * 2);
-		}
 		ansnd_update_voice_pitch(voice);
 		voice->flags &= ~VOICE_FLAG_PITCH_CHANGE;
 	}
@@ -1426,9 +1463,6 @@ s32 ansnd_set_voice_pitch(u32 voice_id, f32 pitch) {
 	
 	if (!(voice->flags & VOICE_FLAG_CONFIGURED)) {
 		return ANSND_ERROR_VOICE_NOT_CONFIGURED;
-	}
-	if (voice->flags & VOICE_FLAG_RUNNING) {
-		return ANSND_ERROR_VOICE_RUNNING;
 	}
 	f32 max_samplerate = 1.f;
 	switch (ansnd_output_samplerate) {
