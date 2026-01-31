@@ -159,51 +159,8 @@ static void print_error(s32 error) {
 	if (error == ANSND_ERROR_OK) {
 		return;
 	}
-	printf("\tansnd library Error:\n\t\t");
-	switch (error) {
-	case ANSND_ERROR_NOT_INITIALIZED:
-		printf("Library not initialized");
-		break;
-	case ANSND_ERROR_INVALID_CONFIGURATION:
-		printf("Invalid value(s) used to initialize a voice");
-		break;
-	case ANSND_ERROR_INVALID_INPUT:
-		printf("Invalid value input into a function");
-		break;
-	case ANSND_ERROR_INVALID_SAMPLERATE:
-		printf("Invalid samplerate used for voice initialization or resulting from pitch");
-		break;
-	case ANSND_ERROR_INVALID_MEMORY:
-		printf("Invalid memory location given");
-		break;
-	case ANSND_ERROR_ALL_VOICES_USED:
-		printf("No available voices to allocate");
-		break;
-	case ANSND_ERROR_VOICE_ID_NOT_ALLOCATED:
-		printf("This voice id has not yet been allocated");
-		break;
-	case ANSND_ERROR_VOICE_NOT_CONFIGURED:
-		printf("This voice has not been setup yet");
-		break;
-	case ANSND_ERROR_VOICE_NOT_INITIALIZED:
-		printf("This voice has not been initialized yet");
-		break;
-	case ANSND_ERROR_VOICE_RUNNING:
-		printf("This function cannot be called while the voice is running");
-		break;
-	case ANSND_ERROR_VOICE_ALREADY_LINKED:
-		printf("This voice is already linked to another and cannot be linked to a third");
-		break;
-	case ANSND_ERROR_VOICE_NOT_LINKED:
-		printf("This voice is not linked to another and cannot be unlinked");
-		break;
-	case ANSND_ERROR_DSP_STALLED:
-		printf("The DSP has stalled, likely due to playing too many resampled voices at once");
-		break;
-	default:
-		printf("Unrecognized error code: %d", error);
-	}
-	printf("\n");
+	printf("\tansnd library Error %d:\n\t\t", error);
+	printf("%s\n", ansnd_get_error_string(error));
 }
 
 static void *xfb = NULL;
