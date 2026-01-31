@@ -250,6 +250,54 @@ static u64 ansnd_total_process_time   = 0;
 
 static ansnd_voice_t ansnd_voices[ANSND_MAX_VOICES];
 
+static f32 get_dsp_frequency()
+{
+	f32 dsp_frequency = 1.f;
+	switch (ansnd_output_samplerate) {
+	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
+		dsp_frequency = ANSND_DSP_FREQ_32KHZ;
+		break;
+	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
+		dsp_frequency = ANSND_DSP_FREQ_48KHZ;
+		break;
+	default:
+		break;
+	}
+	return dsp_frequency;
+}
+
+static u32 get_microseconds_per_cycle()
+{
+	u32 microseconds_per_cycle = 0;
+	switch (ansnd_output_samplerate) {
+	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
+		microseconds_per_cycle = 7500;
+		break;
+	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
+		microseconds_per_cycle = 5000;
+		break;
+	default:
+		break;
+	}
+	return microseconds_per_cycle;
+}
+
+static f32 get_max_samplerate()
+{
+	f32 max_samplerate = 1.f;
+	switch (ansnd_output_samplerate) {
+	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
+		max_samplerate = ANSND_MAX_SAMPLERATE_32KHZ;
+		break;
+	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
+		max_samplerate = ANSND_MAX_SAMPLERATE_48KHZ;
+		break;
+	default:
+		break;
+	}
+	return max_samplerate;
+}
+
 // forward declarations for ansnd_load_dsp_task()
 static void ansnd_dsp_initialized_callback(dsptask_t* task);
 static void ansnd_dsp_resume_callback(dsptask_t* task);
@@ -279,17 +327,7 @@ static void ansnd_erase_voice(ansnd_voice_t* voice) {
 static void ansnd_update_voice_pitch(ansnd_voice_t* voice) {
 	ansnd_parameter_block_t* const parameter_block = voice->parameter_block;
 	
-	f32 dsp_frequency = 1.f;
-	switch (ansnd_output_samplerate) {
-	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
-		dsp_frequency = ANSND_DSP_FREQ_32KHZ;
-		break;
-	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
-		dsp_frequency = ANSND_DSP_FREQ_48KHZ;
-		break;
-	default:
-		break;
-	}
+	f32 dsp_frequency = get_dsp_frequency();
 	
 	const u32 base_frequency = 0x00010000;
 	f32 adjusted_samplerate  = voice->samplerate * voice->pitch;
@@ -362,25 +400,12 @@ static void ansnd_update_voice_pitch(ansnd_voice_t* voice) {
 }
 
 static void ansnd_update_voice_delay(ansnd_voice_t* voice) {
-	f32 dsp_frequency = 1.f;
-	u32 microseconds_per_cycle = 0;
-	switch (ansnd_output_samplerate) {
-	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
-		dsp_frequency = ANSND_DSP_FREQ_32KHZ;
-		microseconds_per_cycle = 7500;
-		break;
-	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
-		dsp_frequency = ANSND_DSP_FREQ_48KHZ;
-		microseconds_per_cycle = 5000;
-		break;
-	default:
-		break;
-	}
+	f32 microseconds_per_cycle = get_microseconds_per_cycle();
 	
 	if (voice->delay < microseconds_per_cycle) {
 		// convert delay to output samples in 1 cycle
 		voice->parameter_block->flags &= ~VOICE_FLAG_DELAY;
-		voice->parameter_block->delay = lrint((voice->delay * dsp_frequency) / 1000000);
+		voice->parameter_block->delay = lrint((voice->delay * get_dsp_frequency()) / 1000000);
 		voice->flags                  &= ~VOICE_FLAG_DELAY;
 		voice->delay                  = 0;
 	} else {
@@ -892,19 +917,8 @@ s32 ansnd_configure_pcm_voice(u32 voice_id, const ansnd_pcm_voice_config_t* voic
 	if (voice_config == NULL) {
 		return ANSND_ERROR_INVALID_INPUT;
 	}
-	f32 max_samplerate = 1.f;
-	switch (ansnd_output_samplerate) {
-	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
-		max_samplerate = ANSND_MAX_SAMPLERATE_32KHZ;
-		break;
-	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
-		max_samplerate = ANSND_MAX_SAMPLERATE_48KHZ;
-		break;
-	default:
-		break;
-	}
 	if (((voice_config->samplerate * voice_config->pitch) < 50) ||
-		((voice_config->samplerate * voice_config->pitch) > max_samplerate)) {
+		((voice_config->samplerate * voice_config->pitch) > get_max_samplerate())) {
 		return ANSND_ERROR_INVALID_SAMPLERATE;
 	}
 	if ((voice_config->frame_data_ptr == 0) ||
@@ -1022,19 +1036,8 @@ s32 ansnd_configure_adpcm_voice(u32 voice_id, const ansnd_adpcm_voice_config_t* 
 	if (voice_config == NULL) {
 		return ANSND_ERROR_INVALID_INPUT;
 	}
-	f32 max_samplerate = 1.f;
-	switch (ansnd_output_samplerate) {
-	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
-		max_samplerate = ANSND_MAX_SAMPLERATE_32KHZ;
-		break;
-	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
-		max_samplerate = ANSND_MAX_SAMPLERATE_48KHZ;
-		break;
-	default:
-		break;
-	}
 	if (((voice_config->samplerate * voice_config->pitch) < 50) ||
-		((voice_config->samplerate * voice_config->pitch) > max_samplerate)) {
+		((voice_config->samplerate * voice_config->pitch) > get_max_samplerate())) {
 		return ANSND_ERROR_INVALID_SAMPLERATE;
 	}
 	if ((voice_config->data_ptr == 0) ||
@@ -1464,19 +1467,9 @@ s32 ansnd_set_voice_pitch(u32 voice_id, f32 pitch) {
 	if (!(voice->flags & VOICE_FLAG_CONFIGURED)) {
 		return ANSND_ERROR_VOICE_NOT_CONFIGURED;
 	}
-	f32 max_samplerate = 1.f;
-	switch (ansnd_output_samplerate) {
-	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
-		max_samplerate = ANSND_MAX_SAMPLERATE_32KHZ;
-		break;
-	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
-		max_samplerate = ANSND_MAX_SAMPLERATE_48KHZ;
-		break;
-	default:
-		break;
-	}
+	
 	if (((voice->samplerate * pitch) < 50) ||
-		((voice->samplerate * pitch) > max_samplerate)) {
+		((voice->samplerate * pitch) > get_max_samplerate())) {
 		return ANSND_ERROR_INVALID_SAMPLERATE;
 	}
 	
@@ -1511,17 +1504,7 @@ s32 ansnd_get_dsp_usage_percent(f32* dsp_usage) {
 		return ANSND_ERROR_OK;
 	}
 	
-	f32 microseconds_per_cycle = 1.f;
-	switch (ansnd_output_samplerate) {
-	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
-		microseconds_per_cycle = 7500.f;
-		break;
-	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
-		microseconds_per_cycle = 5000.f;
-		break;
-	default:
-		break;
-	}
+	f32 microseconds_per_cycle = get_microseconds_per_cycle();
 	
 	u32 level;
 	_CPU_ISR_Disable(level);
@@ -1544,17 +1527,7 @@ s32 ansnd_get_total_usage_percent(f32* total_usage) {
 		return ANSND_ERROR_OK;
 	}
 	
-	f32 microseconds_per_cycle = 1.f;
-	switch (ansnd_output_samplerate) {
-	case ANSND_OUTPUT_SAMPLERATE_32KHZ:
-		microseconds_per_cycle = 7500.f;
-		break;
-	case ANSND_OUTPUT_SAMPLERATE_48KHZ:
-		microseconds_per_cycle = 5000.f;
-		break;
-	default:
-		break;
-	}
+	f32 microseconds_per_cycle = get_microseconds_per_cycle();
 	
 	u32 level;
 	_CPU_ISR_Disable(level);
