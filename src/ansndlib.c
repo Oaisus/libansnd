@@ -352,7 +352,7 @@ static void ansnd_update_voice_pitch(ansnd_voice_t* voice) {
 	parameter_block->filter_step_512 = (filter_step >> 6) & 0x01FC;
 	
 	// update the sample buffer(s)
-	u16 new_sample_buffer_size     = lrintf(131071.f / filter_step);
+	u16 new_sample_buffer_size     = lrintf((f32)0x1FFFC / filter_step);
 	u16 new_sample_buffer_wrapping = new_sample_buffer_size - 1;
 	u16 new_sample_buffer_index    = 16 - new_sample_buffer_size;
 	

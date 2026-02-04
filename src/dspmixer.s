@@ -287,9 +287,7 @@ wait_command:
 	jmp       wait_command // unrecognized command, ignore
 
 process_voices:
-	s16
 	call      mix_and_resample
-	s40
 	
 	call      send_audio_buffer
 	
@@ -373,7 +371,7 @@ mix_stereo:
 	addp'dr   $acc1                       : $ar3
 	srri      @$ar3,   $acc0.m
 mixing_complete:
-	s16's                                 : @$ar3,   $acc1.m
+	srri      @$ar3,   $acc1.m
 	jmp       core_loop_end
 
 // clobbers $acc1.m
@@ -394,7 +392,7 @@ resample_no_resample:
 	lri       $ar3,    #resample_no_resample_read_end
 	jmpr      $ar0
 resample_no_resample_read_end:
-	s40'dr                                : $ar1
+	dar       $ar1
 	lrri      $acc0.m, @$ar1
 	dar       $ar2
 	clrp'l                                : $acc1.m, @$ar2
@@ -428,10 +426,10 @@ resample_read_loop_end:
 	
 	lsl       $acc0,   #15
 	not'l     $acc0.m                     : $acx1.h, @$ar3            // filter step
+	andi      $acc0.m, #0x7FFF
 	mulc      $acc0.m, $acx1.h
 	movp      $acc0
 	lsr       $acc0,   #6
-	andi      $acc0.m, #0x01FC
 	ori       $acc0.m, #0x1403
 	mrr       $ar0,    $acc0.m
 // ^ Setup Coefficients Addressing ^
@@ -450,7 +448,7 @@ resample_read_loop_end:
 resample_coefficients_loop_end:
 	mulmv         $acx1.l, $acx1.h, $acc0
 	
-	s40's                                 : @$ar3,   $acc0.m
+	clrp's                                : @$ar3,   $acc0.m
 	addr'ir   $acc1.m, $acx0.h            : $ar3
 	clr's     $acc0                       : @$ar3,   $acc1.m          // error factor
 // ^ Calculate Coefficients ^
@@ -458,7 +456,6 @@ resample_coefficients_loop_end:
 // v Calculate New Samples v
 	lri       $ar3,    #WORK_RESAMPLING_COEF_BUF
 	
-	clrp
 	// partially unroll the loop to reduce instructions inside
 	cw        0x89F3 // clr'ldax $acc1               : $acx1,   @$ar1
 	bloop     $acx0.l, resample_samples_loop_end
